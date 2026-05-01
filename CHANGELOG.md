@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.3.5] - 2026-05-01
+
+### Fixed
+
+- **`findState` crashed with `e.map is not a function` when a non-IC device advertised the `segment_color_setting` capability descriptor with a non-array `state.value`.** Some Govee lights (e.g. H6056) include the segmented descriptor in their state response but populate it with `null`, an object, or a scalar instead of the documented array. `mapCapabilitiesToStateProperties` iterated the value directly, propagating a TypeError up through `RetryableRequest.normalizeError` and rejecting the entire state response — leaving consumers without even the valid `powerSwitch` / `brightness` they could have shown. Both the `segmentedColorRgb` and `segmentedBrightness` branches now `Array.isArray`-guard `state.value` and skip the capability when it isn't an array, matching the defensive-parsing posture of the other branches added in 3.3.4 (#27).
+
+### Tests
+
+- 2 new integration tests under `defensive parsing for malformed capability payloads` covering both segmented branches against `null` / `{}` / scalars; assert the malformed capability is dropped and `powerSwitch` still parses.
+
 ## [3.3.4] - 2026-04-25
 
 ### Fixed

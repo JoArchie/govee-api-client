@@ -1067,6 +1067,79 @@ describe('GoveeDeviceRepository Integration Tests', () => {
         const state = await repository.findState('device123', 'H6159');
         expect(state.getMusicMode()?.modeId).toBe(5);
       });
+
+      it('skips segmentedColorRgb when state.value is not an array', async () => {
+        // Some non-IC devices advertise the segment_color_setting
+        // capability descriptor but return a non-array value (object,
+        // null, scalar). Pre-fix this raised `e.map is not a function`
+        // and aborted the entire findState response. Now the malformed
+        // capability is dropped and other valid fields survive.
+        for (const malformed of [null, {}, 0, 'oops'] as const) {
+          server.resetHandlers();
+          server.use(
+            http.post(`${BASE_URL}/router/api/v1/device/state`, () => {
+              return HttpResponse.json({
+                code: 200,
+                message: 'Success',
+                data: {
+                  device: 'device123',
+                  sku: 'H6159',
+                  capabilities: [
+                    {
+                      type: 'devices.capabilities.on_off',
+                      instance: 'powerSwitch',
+                      state: { value: 1 },
+                    },
+                    {
+                      type: 'devices.capabilities.segment_color_setting',
+                      instance: 'segmentedColorRgb',
+                      state: { value: malformed },
+                    },
+                  ],
+                },
+              });
+            })
+          );
+
+          const state = await repository.findState('device123', 'H6159');
+          expect(state.getPowerState()).toBe('on');
+          expect(state.getSegmentColors()).toBeUndefined();
+        }
+      });
+
+      it('skips segmentedBrightness when state.value is not an array', async () => {
+        for (const malformed of [null, {}, 0, 'oops'] as const) {
+          server.resetHandlers();
+          server.use(
+            http.post(`${BASE_URL}/router/api/v1/device/state`, () => {
+              return HttpResponse.json({
+                code: 200,
+                message: 'Success',
+                data: {
+                  device: 'device123',
+                  sku: 'H6159',
+                  capabilities: [
+                    {
+                      type: 'devices.capabilities.on_off',
+                      instance: 'powerSwitch',
+                      state: { value: 1 },
+                    },
+                    {
+                      type: 'devices.capabilities.segment_color_setting',
+                      instance: 'segmentedBrightness',
+                      state: { value: malformed },
+                    },
+                  ],
+                },
+              });
+            })
+          );
+
+          const state = await repository.findState('device123', 'H6159');
+          expect(state.getPowerState()).toBe('on');
+          expect(state.getSegmentBrightness()).toBeUndefined();
+        }
+      });
     });
   });
 

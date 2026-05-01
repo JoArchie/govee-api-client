@@ -1012,7 +1012,17 @@ export class GoveeDeviceRepository implements IGoveeDeviceRepository {
         // DeviceState.getSegmentColors() / getSegmentBrightness()
         // undefined for every device.
         if (capability.instance === 'segmentedColorRgb') {
-          const groups = capability.state.value as Array<{
+          // Some non-IC devices still advertise the segment_color_setting
+          // capability descriptor but return a non-array `state.value`
+          // (object, null, scalar). Iterating without an array guard
+          // surfaced as `e.map is not a function` in plugins consuming
+          // findState. Skip the capability silently — there's no
+          // segment data to expose.
+          const rawValue = capability.state.value;
+          if (!Array.isArray(rawValue)) {
+            continue;
+          }
+          const groups = rawValue as Array<{
             segment: number | number[];
             rgb: unknown;
           }>;
@@ -1028,7 +1038,11 @@ export class GoveeDeviceRepository implements IGoveeDeviceRepository {
             value: flatSegments,
           };
         } else if (capability.instance === 'segmentedBrightness') {
-          const segments = capability.state.value as Array<{
+          const rawValue = capability.state.value;
+          if (!Array.isArray(rawValue)) {
+            continue;
+          }
+          const segments = rawValue as Array<{
             segment: number;
             brightness: number;
           }>;
